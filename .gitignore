@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Ambientes virtuais
+.venv/
+venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Saves / runtime
+save_game.json
+
+# Sistema
+.DS_Store
+Thumbs.db
