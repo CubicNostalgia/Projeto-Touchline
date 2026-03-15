@@ -6,6 +6,7 @@
         posicao: str,
         idade: int = 23,
         potencial: int = 80,
+        salario: int | None = None,
         status_base: str = "profissional",
         origem_base: bool = False,
         lesao_dias: int = 0,
@@ -15,6 +16,7 @@
         self.posicao = posicao
         self.idade = idade
         self.potencial = potencial
+        self.salario = int(salario) if salario is not None else 0
         self.status_base = status_base
         self.origem_base = origem_base
         self.lesao_dias = max(0, int(lesao_dias))
@@ -64,6 +66,7 @@
             "posicao": self.posicao,
             "idade": self.idade,
             "potencial": self.potencial,
+            "salario": self.salario,
             "status_base": self.status_base,
             "origem_base": self.origem_base,
             "fadiga": self.fadiga,
@@ -80,6 +83,7 @@
             data.get("posicao", "MC"),
             idade=data.get("idade", 19),
             potencial=data.get("potencial", 75),
+            salario=data.get("salario", 0),
             status_base=data.get("status_base", "profissional"),
             origem_base=data.get("origem_base", False),
             lesao_dias=data.get("lesao_dias", 0),

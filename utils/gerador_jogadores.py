@@ -62,6 +62,13 @@ def gerar_over(forca_base: int):
     return max(56, min(84, forca_base + random.choice([-3, -2, -1, 0, 1, 2])))
 
 
+def calcular_salario(overall: int, idade: int, potencial: int):
+    base = 800 + (overall ** 2) * 6
+    bonus_pot = max(0, (potencial - overall) * 120)
+    bonus_idade = -max(0, idade - 30) * 120
+    return int(max(600, base + bonus_pot + bonus_idade))
+
+
 def gerar_jogador(
     forca_base: int,
     posicao: str,
@@ -74,12 +81,14 @@ def gerar_jogador(
     overall = gerar_over(forca_base)
     if potencial is None:
         potencial = max(overall, min(91, overall + random.randint(1, 8) - max(0, idade - 25) // 2))
+    salario = calcular_salario(overall, idade, potencial)
     return Jogador(
         gerar_nome(),
         overall,
         posicao,
         idade=idade,
         potencial=potencial,
+        salario=salario,
         status_base=status_base,
         origem_base=origem_base,
     )
@@ -98,6 +107,7 @@ def gerar_newgen_base(nivel_base: int, posicao: str):
     pot_min = min(pot_min, 95)
     pot_max = min(max(pot_max, pot_min), 95)
     potencial = max(overall, random.randint(pot_min, pot_max))
+    salario = calcular_salario(overall, idade, potencial)
 
     return Jogador(
         gerar_nome(),
@@ -105,6 +115,7 @@ def gerar_newgen_base(nivel_base: int, posicao: str):
         posicao,
         idade=idade,
         potencial=potencial,
+        salario=salario,
         status_base="base",
         origem_base=True,
     )

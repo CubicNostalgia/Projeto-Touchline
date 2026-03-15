@@ -1,7 +1,13 @@
 import io
 import sys
 
-from data.clubes import carregar_clubes_serie_a, carregar_clubes_serie_b_2026, carregar_clubes_paulistao
+from data.clubes import (
+    carregar_clubes_serie_a,
+    carregar_clubes_serie_b_2026,
+    carregar_clubes_serie_c_2026,
+    carregar_clubes_serie_d_2026,
+    carregar_clubes_paulistao,
+)
 from core.clube import FORMACOES
 from core.liga import Liga
 from core.temporada import Temporada
@@ -9,6 +15,7 @@ from save_manager import save_exists, carregar_save, iniciar_novo_save, salvar_s
 from ui.exibir_elenco import exibir_elenco
 from ui.mensagens import mensagem_boas_vindas_objetivos, gerar_objetivos_por_clube
 from data.database import HIERARQUIA_COMPETICOES, COMPETICOES
+import db_manager
 
 
 def configurar_stdout_utf8():
@@ -22,14 +29,20 @@ def configurar_stdout_utf8():
 
 def escolher_liga(estado_mundo=None):
     print("\nEscolha a competição nacional jogável:")
-    print("1. Campeonato Brasileiro — Série A")
-    print("2. Campeonato Brasileiro — Série B")
+    print("1. Campeonato Brasileiro Série A")
+    print("2. Campeonato Brasileiro Série B")
+    print("3. Campeonato Brasileiro Série C")
+    print("4. Campeonato Brasileiro Série D")
     while True:
         op = input("Opção: ").strip()
         if op == "1":
-            return "bra_a", carregar_clubes_serie_a(estado_mundo=estado_mundo), "Campeonato Brasileiro — Série A"
+            return "bra_a", carregar_clubes_serie_a(estado_mundo=estado_mundo), "Campeonato Brasileiro Série A"
         if op == "2":
-            return "bra_b", carregar_clubes_serie_b_2026(estado_mundo=estado_mundo), "Campeonato Brasileiro — Série B"
+            return "bra_b", carregar_clubes_serie_b_2026(estado_mundo=estado_mundo), "Campeonato Brasileiro Série B"
+        if op == "3":
+            return "bra_c", carregar_clubes_serie_c_2026(estado_mundo=estado_mundo), "Campeonato Brasileiro  Série C"
+        if op == "4":
+            return "bra_d", carregar_clubes_serie_d_2026(estado_mundo=estado_mundo), "Campeonato Brasileiro Série D"
 
 
 def escolher_clube(clubes):
@@ -69,13 +82,20 @@ def personalizar_escalacao(clube):
 
 def exibir_tabelas_disponiveis(temporada):
     competicoes = list(temporada.tabelas.keys())
+    tem_grupos_d = any(c.startswith("bra_d_g") for c in competicoes)
+    competicoes = [c for c in competicoes if not c.startswith("bra_d_g")]
+    if tem_grupos_d:
+        competicoes.append("bra_d_grupos")
     if not competicoes:
         print("\nNenhuma tabela disponível no momento.")
         return
 
-    print("\n📊 Tabelas disponíveis")
+    print("\nTabelas disponíveis")
     for i, comp in enumerate(competicoes, start=1):
-        nome = COMPETICOES.get(comp, {}).get("nome", comp.upper())
+        if comp == "bra_d_grupos":
+            nome = "Série D: Grupos"
+        else:
+            nome = COMPETICOES.get(comp, {}).get("nome", comp.upper())
         print(f"[{i}] {nome}")
     print("[0] Voltar")
 
@@ -85,7 +105,11 @@ def exibir_tabelas_disponiveis(temporada):
         if idx == 0:
             return
         if 1 <= idx <= len(competicoes):
-            temporada.exibir_tabela(competicoes[idx - 1])
+            comp = competicoes[idx - 1]
+            if comp == "bra_d_grupos":
+                temporada.exibir_grupos_serie_d()
+            else:
+                temporada.exibir_tabela(comp)
 
 
 def main():
@@ -93,8 +117,9 @@ def main():
     print("⚽ TOUCHLINE — Football Manager (Alpha)\n")
     print("Hierarquia de competições:", " < ".join(HIERARQUIA_COMPETICOES))
 
+    db_manager.seed_database_if_needed()
     estado_mundo = carregar_save() if save_exists() else None
-    _, clubes_nacionais, nome_liga = escolher_liga(estado_mundo=estado_mundo)
+    comp_id, clubes_nacionais, nome_liga = escolher_liga(estado_mundo=estado_mundo)
 
     if not estado_mundo:
         estado_mundo = iniciar_novo_save(clubes_nacionais)
@@ -113,6 +138,7 @@ def main():
         clubes_paulistao=clubes_paulistao,
         objetivos=objetivos,
         estado_mundo_inicial=estado_mundo,
+        competicao_id=comp_id,
     )
 
     while True:

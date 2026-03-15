@@ -15,6 +15,7 @@ venv/
 
 # Saves / runtime
 save_game.json
+save_game.db
 
 # Sistema
 .DS_Store
