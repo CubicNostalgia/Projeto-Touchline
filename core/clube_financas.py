@@ -1,3 +1,5 @@
+import math
+
 class ClubeFinancasMixin:
     def cota_tv_por_tier(self):
         piso = 500_000
@@ -12,7 +14,12 @@ class ClubeFinancasMixin:
         return int(valor_base * self.multiplicador_valor_mercado())
 
     def ticket_medio(self):
+        # Base de 25 reais + bonus por tier e nivel do estadio
         return int(25 + (self.reputacao_tier * 4) + (self.nivel_estadio * 2))
+
+    def _clamp_capacidade(self, valor):
+        """Garante que a capacidade nao seja negativa."""
+        return max(0, int(valor))
 
     def capacidade_neutra(self, adversario_tier=None):
         adversario_tier = adversario_tier or 10
@@ -24,6 +31,7 @@ class ClubeFinancasMixin:
             return False
         if adversario.reputacao_tier < 10:
             return False
+
         receita_casa = self.calcular_bilheteria(
             capacidade_estadio=self.capacidade_estadio,
             vender_mando=False,
@@ -47,6 +55,8 @@ class ClubeFinancasMixin:
     def calcular_bilheteria(self, capacidade_estadio=None, fase_vitorias=0, derby=False, vender_mando=False, adversario_tier=None):
         capacidade = self.capacidade_estadio if capacidade_estadio is None else capacidade_estadio
         capacidade = self._clamp_capacidade(capacidade)
+
+        # Logica de torcida baseada na reputacao
         base_torcida = int(2_500 + (self.reputacao_tier ** 1.7) * 1_700)
         bonus_fase = 1 + (min(fase_vitorias, 8) * 0.03)
         bonus_importancia = 1.2 if derby else 1.0
@@ -69,10 +79,15 @@ class ClubeFinancasMixin:
 
     def _custo_operacional_anual(self):
         custo_base = 220_000 * (self.reputacao_tier ** 1.45)
+        # Calculo de folha salarial baseado no overall do elenco
         folha = sum(j.overall for j in self.elenco) * (1_400 + (self.reputacao_tier * 110))
+
         custo_infra = self.custo_manutencao_infra_mensal() * 12
+
+        # Checa se os metodos de staff e base existem no objeto final
         custo_staff = self.custo_staff_mensal() * 12 if hasattr(self, "custo_staff_mensal") else 0
         custo_base_invest = self.custo_investimento_base_mensal() * 12 if hasattr(self, "custo_investimento_base_mensal") else 0
+
         return int(custo_base + folha + custo_infra + custo_staff + custo_base_invest)
 
     def atualizar_job_security(self, titulos=0, permaneceu_elite=False):
@@ -88,6 +103,7 @@ class ClubeFinancasMixin:
             demissao = not permaneceu_elite and "bra_a" in self.competicoes
             risco = "alto" if demissao else "baixo"
             objetivo = "Permanencia e estabilidade"
+
         self.job_security = {"risco": risco, "demissao_imediata": demissao, "objetivo": objetivo}
 
     def aplicar_manutencao_anual(self):
@@ -97,10 +113,13 @@ class ClubeFinancasMixin:
 
         crise = self.financas < 0
         if crise:
-            self.infraestrutura["ct"] = max(0, self.nivel_ct - 1)
-            self.infraestrutura["base"] = max(0, self.nivel_base - 1)
-            self.infraestrutura["estadio_nivel"] = max(0, self.nivel_estadio - 1)
-            perda_pp = int(self.alvo_pp_tier(self.reputacao_tier) * 0.08)
+            # Penalidades por crise financeira
+            if hasattr(self, "infraestrutura"):
+                self.infraestrutura["ct"] = max(0, self.nivel_ct - 1)
+                self.infraestrutura["base"] = max(0, self.nivel_base - 1)
+                self.infraestrutura["estadio_nivel"] = max(0, self.nivel_estadio - 1)
+
+            perda_pp = int(self.alvo_pp_tier(self.reputacao_tier) * 0.08) if hasattr(self, "alvo_pp_tier") else 0
             self.prestigio_acumulado = max(0, self.prestigio_acumulado - perda_pp)
             self.status_financeiro = "crise"
         else:
@@ -108,12 +127,18 @@ class ClubeFinancasMixin:
         return crise
 
     def atualizar_reputacao_financas_fim_ano(self, titulos=0, elite_assiduo=False, permaneceu_elite=False):
-        self.prestigio_acumulado += self.calcular_pp_anual(titulos=titulos, elite_assiduo=elite_assiduo)
+        if hasattr(self, "calcular_pp_anual"):
+            self.prestigio_acumulado += self.calcular_pp_anual(titulos=titulos, elite_assiduo=elite_assiduo)
 
-        taxa_decaimento = self.decaimento_percentual_tier(max(1, self.reputacao_tier)) / 100
+        # Taxa de decaimento de prestigio
+        taxa_decaimento = 0.05  # Padrao caso o metodo nao exista
+        if hasattr(self, "decaimento_percentual_tier"):
+            taxa_decaimento = self.decaimento_percentual_tier(max(1, self.reputacao_tier)) / 100
+
         self.prestigio_acumulado = max(0, int(self.prestigio_acumulado * (1 - taxa_decaimento)))
 
         crise = self.aplicar_manutencao_anual()
-        self.sincronizar_reputacao_por_prestigio()
+        if hasattr(self, "sincronizar_reputacao_por_prestigio"):
+            self.sincronizar_reputacao_por_prestigio()
         self.atualizar_job_security(titulos=titulos, permaneceu_elite=permaneceu_elite)
         return crise
