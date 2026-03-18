@@ -36,6 +36,23 @@ SOBRENOMES_DA = {
 
 SOBRENOMES_DOS = {"Santos"}
 
+HABILIDADES_POS = [
+    "Pe de Canhao",
+    "Mestre do Passe",
+    "Ladrao de Bola",
+    "Lider Nato",
+    "Garcom",
+]
+
+DEFEITOS = [
+    "Vidro",
+    "Pulmao de Fumante",
+    "Pavio Curto",
+    "Pipoqueiro",
+    "Tijolo no Pe",
+    "Cego de um Olho",
+]
+
 
 def _preposicao_para_sobrenome(sobrenome):
     if sobrenome in SOBRENOMES_DOS:
@@ -68,6 +85,26 @@ def calcular_salario(overall: int, idade: int, potencial: int):
     bonus_idade = -max(0, idade - 30) * 120
     return int(max(600, base + bonus_pot + bonus_idade))
 
+def gerar_traits(potencial: int, idade: int):
+    habilidades = []
+    defeitos = []
+
+    chance_habilidade = 0.08 + max(0, (potencial - 80) * 0.006)
+    if random.random() < chance_habilidade:
+        habilidades.append(random.choice(HABILIDADES_POS))
+    if potencial >= 88 and random.random() < 0.06:
+        habilidades.append(random.choice(HABILIDADES_POS))
+
+    chance_defeito = 0.12 + (0.05 if idade >= 30 else 0)
+    if random.random() < chance_defeito:
+        defeitos.append(random.choice(DEFEITOS))
+    if random.random() < 0.04:
+        defeitos.append(random.choice(DEFEITOS))
+
+    habilidades = list(dict.fromkeys(habilidades))
+    defeitos = list(dict.fromkeys(defeitos))
+    return habilidades, defeitos
+
 
 def gerar_jogador(
     forca_base: int,
@@ -76,12 +113,13 @@ def gerar_jogador(
     potencial: Optional[int] = None,
     status_base: str = "profissional",
     origem_base: bool = False,
-):
+    ):
     idade = idade if idade is not None else random.randint(17, 35)
     overall = gerar_over(forca_base)
     if potencial is None:
         potencial = max(overall, min(91, overall + random.randint(1, 8) - max(0, idade - 25) // 2))
     salario = calcular_salario(overall, idade, potencial)
+    habilidades, defeitos = gerar_traits(potencial, idade)
     return Jogador(
         gerar_nome(),
         overall,
@@ -91,6 +129,8 @@ def gerar_jogador(
         salario=salario,
         status_base=status_base,
         origem_base=origem_base,
+        habilidades=habilidades,
+        defeitos=defeitos,
     )
 
 
@@ -108,6 +148,7 @@ def gerar_newgen_base(nivel_base: int, posicao: str):
     pot_max = min(max(pot_max, pot_min), 95)
     potencial = max(overall, random.randint(pot_min, pot_max))
     salario = calcular_salario(overall, idade, potencial)
+    habilidades, defeitos = gerar_traits(potencial, idade)
 
     return Jogador(
         gerar_nome(),
@@ -118,6 +159,8 @@ def gerar_newgen_base(nivel_base: int, posicao: str):
         salario=salario,
         status_base="base",
         origem_base=True,
+        habilidades=habilidades,
+        defeitos=defeitos,
     )
 
 
