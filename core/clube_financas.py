@@ -7,6 +7,10 @@ class ClubeFinancasMixin:
         frac = (self.reputacao_tier - 1) / 14
         return int(piso + (teto - piso) * (frac ** 1.45))
 
+    def cota_patrocinio_base(self):
+        base = 250_000 + (self.reputacao_tier ** 1.6) * 60_000
+        return int(base)
+
     def multiplicador_valor_mercado(self):
         return round(0.75 + (self.reputacao_tier / 15) * 1.75, 2)
 
@@ -109,6 +113,11 @@ class ClubeFinancasMixin:
     def aplicar_manutencao_anual(self):
         custo_total = self._custo_operacional_anual()
         self.financas += self.cota_tv_por_tier()
+        mult = getattr(self, "multiplicador_patrocinio", 1.0)
+        patrocinio = self.cota_patrocinio_base() * mult
+        if getattr(self, "patrocinio_penalizado", False):
+            patrocinio = patrocinio * 0.4
+        self.financas += int(patrocinio)
         self.financas -= custo_total
 
         crise = self.financas < 0

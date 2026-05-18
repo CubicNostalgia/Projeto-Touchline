@@ -6,16 +6,20 @@ from core.jogador import Jogador
 PRENOMES = [
     "Gabriel", "Lucas", "Matheus", "Vitor", "Bruno", "Felipe", "Igor", "Caio", "Rafael", "Diego",
     "Renan", "Arthur", "Pedro", "Thiago", "Andre", "Leandro", "Henrique", "Danilo", "Eduardo", "Samuel",
-    "Wagner", "Walace", "Anderson", "Hugo", "Gustavo", "Enzo", "Pablo", "Otávio", "Jefferson", "Jeferson",
-    "Cristian", "Joaquim", "Jonas", "Cléber"
+    "Wagner", "Hugo", "Gustavo", "Enzo", "Pablo", "Otavio", "Jefferson", "Cristian", "Joaquim", "Jonas",
+    "Cleber", "Marcos", "Cauan", "Breno", "Wesley", "Nathan", "Joao", "Yuri", "Alan", "Rian",
 ]
-MEIOS_SUFIXO = ["Neto", "Junior"]
+PRENOMES_COMPOSTOS = [
+    "Joao Pedro", "Joao Victor", "Luis Felipe", "Carlos Eduardo", "Pedro Henrique", "Joao Gabriel",
+    "Joao Lucas", "Jose Henrique", "Davi Luiz", "Paulo Vitor",
+]
+MEIOS_SUFIXO = ["Junior", "Neto", "Filho"]
 SOBRENOMES = [
     "Silva", "Santos", "Oliveira", "Souza", "Pereira", "Lima", "Ferreira", "Costa", "Rodrigues", "Almeida",
-    "Ribeiro", "Carvalho", "Gomes", "Martins", "Araújo", "Rocha", "Barbosa", "Teixeira", "Correia", "Farias",
-    "Vasconcelos", "Sales", "Telles", "Tavares", "Melo", "Guimarães"
+    "Ribeiro", "Carvalho", "Gomes", "Martins", "Araujo", "Rocha", "Barbosa", "Teixeira", "Correia", "Farias",
+    "Moura", "Nogueira", "Batista", "Macedo", "Assis", "Melo", "Vieira", "Coelho", "Peixoto", "Xavier",
 ]
-APELIDOS = ["Juninho", "Dudu", "Pedrinho", "Vitinho", "Fernandinho", "Tetê", "Bolacha", "Canela", "Tomate", "Tanque"]
+APELIDOS = ["Juninho", "Dudu", "Pedrinho", "Vitinho", "Fernandinho", "Tete", "Nenem", "Biel", "Lukinha", "Kauan"]
 
 POSICOES_ELENCO = {
     "GOL": 3,
@@ -64,15 +68,21 @@ def _preposicao_para_sobrenome(sobrenome):
 
 def gerar_nome():
     modelo = random.random()
-    if modelo < 0.15:
+    if modelo < 0.12:
         return random.choice(APELIDOS)
-    if modelo < 0.55:
+    if modelo < 0.32:
+        return f"{random.choice(PRENOMES_COMPOSTOS)} {random.choice(SOBRENOMES)}"
+    if modelo < 0.58:
         return f"{random.choice(PRENOMES)} {random.choice(SOBRENOMES)}"
-    if modelo < 0.85:
+    if modelo < 0.8:
         sobrenome = random.choice(SOBRENOMES)
         preposicao = _preposicao_para_sobrenome(sobrenome)
         return f"{random.choice(PRENOMES)} {preposicao} {sobrenome}"
-    return f"{random.choice(PRENOMES)} {random.choice(MEIOS_SUFIXO)} {random.choice(SOBRENOMES)}"
+    if modelo < 0.93:
+        return f"{random.choice(PRENOMES)} {random.choice(MEIOS_SUFIXO)} {random.choice(SOBRENOMES)}"
+    sobrenome_1 = random.choice(SOBRENOMES)
+    sobrenome_2 = random.choice([s for s in SOBRENOMES if s != sobrenome_1])
+    return f"{random.choice(PRENOMES)} {sobrenome_1} {sobrenome_2}"
 
 
 def gerar_over(forca_base: int):

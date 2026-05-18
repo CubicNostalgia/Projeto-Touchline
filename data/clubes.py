@@ -19,3 +19,11 @@ def carregar_clubes_serie_d_2026(estado_mundo=None):
 
 def carregar_clubes_paulistao(clubes_existentes=None, estado_mundo=None):
     return clubes_repo.carregar_por_competicao("paulistao_a1")
+
+
+def carregar_clubes_paulistao_a2(clubes_existentes=None, estado_mundo=None):
+    return clubes_repo.carregar_por_competicao("paulistao_a2")
+
+
+def carregar_clubes_cariocao(clubes_existentes=None, estado_mundo=None):
+    return clubes_repo.carregar_por_competicao("cariocao_a1")

@@ -45,4 +45,5 @@ class ClubeReputacaoMixin:
         return min(15, max(1, int((ovr_jogador - 45) / 3)))
 
     def pode_contratar_jogador(self, ovr_jogador):
-        return self.reputacao_tier >= self.requisito_tier_por_ovr(ovr_jogador)
+        bonus = getattr(self, "rnc_bonus_tier", 0)
+        return (self.reputacao_tier + bonus) >= self.requisito_tier_por_ovr(ovr_jogador)

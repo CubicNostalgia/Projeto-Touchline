@@ -49,6 +49,13 @@ class Clube(ClubeReputacaoMixin, ClubeInfraMixin, ClubeFinancasMixin, ClubeBaseM
         self.investimento_base = dados_iniciais.get("investimento_base", "medio")
         self.nivel_auxiliar = self._clamp_staff(dados_iniciais.get("nivel_auxiliar", 1))
         self.nivel_olheiro = self._clamp_staff(dados_iniciais.get("nivel_olheiro", 1))
+        self.estado_federacao = dados_iniciais.get("estado_federacao", dados_iniciais.get("estado", "OUT"))
+        self.estado_vaga = dados_iniciais.get("estado_vaga") or self._estado_vaga_por_competicoes()
+        self.rnc_pontos = dados_iniciais.get("rnc_pontos", 0)
+        self.rnc_rank = dados_iniciais.get("rnc_rank", 0)
+        self.rnc_bonus_tier = dados_iniciais.get("rnc_bonus_tier", 0)
+        self.multiplicador_patrocinio = dados_iniciais.get("multiplicador_patrocinio", 1.0)
+        self.patrocinio_penalizado = dados_iniciais.get("patrocinio_penalizado", False)
 
         self.formacao = "4-3-3"
         self.titulares_customizados = None
@@ -56,6 +63,17 @@ class Clube(ClubeReputacaoMixin, ClubeInfraMixin, ClubeFinancasMixin, ClubeBaseM
     @property
     def forca(self):
         return round(self.calcular_forca_atual(self.escalar_titulares()), 1)
+
+    def _estado_vaga_por_competicoes(self):
+        if "bra_a" in self.competicoes:
+            return "A"
+        if "bra_b" in self.competicoes:
+            return "B"
+        if "bra_c" in self.competicoes:
+            return "C"
+        if "bra_d" in self.competicoes:
+            return "D"
+        return "sem_divisao"
 
 
     def _carregar_base(self, base_serializada):
@@ -185,6 +203,12 @@ class Clube(ClubeReputacaoMixin, ClubeInfraMixin, ClubeFinancasMixin, ClubeBaseM
             "investimento_base": self.investimento_base,
             "nivel_auxiliar": self.nivel_auxiliar,
             "nivel_olheiro": self.nivel_olheiro,
+            "estado_federacao": self.estado_federacao,
+            "estado_vaga": self.estado_vaga,
+            "rnc_pontos": self.rnc_pontos,
+            "rnc_rank": self.rnc_rank,
+            "multiplicador_patrocinio": self.multiplicador_patrocinio,
+            "patrocinio_penalizado": self.patrocinio_penalizado,
             "base_jovens": [j.to_dict() for j in self.base_jovens],
             "competicoes": self.competicoes,
         }

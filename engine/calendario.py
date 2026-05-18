@@ -1,14 +1,58 @@
 ﻿import random
 from datetime import datetime, date, timedelta
-from data.database import DATAS_FIFA_2026, PAUSAS_TORNEIOS_2026, JANELAS_CALENDARIO_2026, SERIE_D_FORMATO
+from data.database import (
+    DATAS_FIFA_2026,
+    PAUSAS_TORNEIOS_2026,
+    JANELAS_CALENDARIO_2026,
+    SERIE_D_FORMATO,
+    COPA_BRASIL_CALENDARIO_2026,
+)
+
+
+ANO_BASE_CALENDARIO = 2026
+
+
+def _data_no_ano(data_base: date, temporada_ano: int):
+    return date(temporada_ano, data_base.month, data_base.day)
+
+
+def _intervalo_no_ano(inicio: date, fim: date, temporada_ano: int):
+    return _data_no_ano(inicio, temporada_ano), _data_no_ano(fim, temporada_ano)
+
+
+def _datas_fifa(temporada_ano: int):
+    return [_intervalo_no_ano(inicio, fim, temporada_ano) for inicio, fim in DATAS_FIFA_2026]
+
+
+def _pausas_torneios(temporada_ano: int):
+    pausas = []
+    for pausa in PAUSAS_TORNEIOS_2026:
+        inicio, fim = _intervalo_no_ano(pausa["inicio"], pausa["fim"], temporada_ano)
+        pausas.append({"nome": pausa.get("nome", "Pausa"), "inicio": inicio, "fim": fim})
+    return pausas
+
+
+def _janelas_calendario(temporada_ano: int):
+    janelas = {}
+    for comp_id, janela in JANELAS_CALENDARIO_2026.items():
+        inicio, fim = _intervalo_no_ano(janela["inicio"], janela["fim"], temporada_ano)
+        janelas[comp_id] = {"inicio": inicio, "fim": fim}
+    return janelas
+
+
+def _copa_brasil_calendario(temporada_ano: int):
+    return [(fase, _data_no_ano(data_base, temporada_ano)) for fase, data_base in COPA_BRASIL_CALENDARIO_2026]
 
 
 def _data_bloqueada(dia: date, considerar_fifa=True):
+    temporada_ano = dia.year
+    datas_fifa = _datas_fifa(temporada_ano)
+    pausas = _pausas_torneios(temporada_ano)
     if considerar_fifa:
-        for inicio, fim in DATAS_FIFA_2026:
+        for inicio, fim in datas_fifa:
             if inicio <= dia <= fim:
                 return True
-    for pausa in PAUSAS_TORNEIOS_2026:
+    for pausa in pausas:
         if pausa["inicio"] <= dia <= pausa["fim"]:
             return True
     return False
@@ -42,6 +86,44 @@ def _alocar_datas(quantidade_rodadas, inicio: date, fim: date):
         datas.extend([d for d in extras if d not in datas])
     datas = sorted(datas)[:quantidade_rodadas]
     return datas
+
+
+def _distribuir_datas_no_intervalo(candidatas, quantidade, inicio, fim):
+    if quantidade <= 0:
+        return []
+    candidatas = sorted(set(candidatas))
+    if not candidatas:
+        return []
+    if quantidade == 1:
+        return [candidatas[0]]
+
+    span = max(1, (fim - inicio).days)
+    selecionadas = []
+    ultimo = None
+    cursor = 0
+    for i in range(quantidade):
+        alvo = inicio + timedelta(days=round((span * i) / (quantidade - 1)))
+        escolha = None
+        for idx in range(cursor, len(candidatas)):
+            candidato = candidatas[idx]
+            if ultimo and candidato <= ultimo:
+                continue
+            if candidato >= alvo:
+                escolha = candidato
+                cursor = idx + 1
+                break
+        if escolha is None:
+            for idx in range(cursor, len(candidatas)):
+                candidato = candidatas[idx]
+                if not ultimo or candidato > ultimo:
+                    escolha = candidato
+                    cursor = idx + 1
+                    break
+        if escolha is None:
+            break
+        selecionadas.append(escolha)
+        ultimo = escolha
+    return selecionadas
 
 
 def _gerar_rodadas_pontos_corridos(clubes):
@@ -80,22 +162,17 @@ def _gerar_rodadas_turno_simples(clubes):
     return rodadas
 
 
-def gerar_calendario_brasileirao(clubes, competicao_id, inicio_override=None):
-    janela = JANELAS_CALENDARIO_2026[competicao_id]
+def gerar_calendario_brasileirao(clubes, competicao_id, inicio_override=None, temporada_ano=ANO_BASE_CALENDARIO):
+    janela = _janelas_calendario(temporada_ano)[competicao_id]
     inicio_base = inicio_override or janela["inicio"]
     fim = janela["fim"]
     rodadas = _gerar_rodadas_pontos_corridos(clubes)
 
-    datas = []
-    datas.extend(_datas_disponiveis(inicio_base, fim, [5, 2], considerar_fifa=False))  # sÃ¡bado e quarta
-    if len(datas) < len(rodadas):
-        extras = _datas_disponiveis(inicio_base, fim, [6], considerar_fifa=False)  # domingo
-        datas.extend([d for d in extras if d not in datas])
-    if len(datas) < len(rodadas):
-        extras = _datas_disponiveis(inicio_base, fim, [1, 3, 4], considerar_fifa=False)  # ter/qui/sex
-        datas.extend([d for d in extras if d not in datas])
-
-    datas = sorted(datas)
+    candidatas = []
+    candidatas.extend(_datas_disponiveis(inicio_base, fim, [5, 6], considerar_fifa=False))  # sabado/domingo
+    candidatas.extend(_datas_disponiveis(inicio_base, fim, [2, 3], considerar_fifa=False))  # quarta/quinta
+    candidatas.extend(_datas_disponiveis(inicio_base, fim, [1, 4], considerar_fifa=False))  # terca/sexta
+    datas = _distribuir_datas_no_intervalo(candidatas, len(rodadas), inicio_base, fim)
 
     if len(datas) < len(rodadas):
         cursor = datetime.combine(fim, datetime.min.time())
@@ -125,8 +202,8 @@ def gerar_rodadas_paulistao(clubes):
     return rodadas[:8]
 
 
-def gerar_calendario_paulistao(clubes):
-    janela = JANELAS_CALENDARIO_2026["paulistao_a1"]
+def gerar_calendario_paulistao(clubes, temporada_ano=ANO_BASE_CALENDARIO):
+    janela = _janelas_calendario(temporada_ano)["paulistao_a1"]
     inicio = datetime.combine(janela["inicio"], datetime.min.time()).replace(hour=16)
     cursor = inicio
     rodadas = gerar_rodadas_paulistao(clubes)
@@ -160,8 +237,95 @@ def gerar_calendario_paulistao(clubes):
     return calendario
 
 
+def gerar_calendario_paulistao_a2(clubes, temporada_ano=ANO_BASE_CALENDARIO):
+    janela = _janelas_calendario(temporada_ano)["paulistao_a2"]
+    rodadas = _gerar_rodadas_turno_simples(clubes)
+    datas = _alocar_datas(len(rodadas), janela["inicio"], janela["fim"])
+    calendario = []
+    for idx, rodada in enumerate(rodadas, start=1):
+        dia = datas[idx - 1]
+        data_jogo = datetime(dia.year, dia.month, dia.day, 16, 0)
+        calendario.append(
+            {
+                "rodada": idx,
+                "competicao": "paulistao_a2",
+                "data": data_jogo,
+                "partidas": rodada,
+                "fase": "grupo",
+            }
+        )
+    ultima_data = calendario[-1]["data"] if calendario else datetime.combine(janela["inicio"], datetime.min.time())
+    calendario.append(
+        {
+            "competicao": "paulistao_a2",
+            "data": ultima_data + timedelta(days=7),
+            "fase": "paulistao_a2_quadrangulares",
+        }
+    )
+    return calendario
+
+
+def _gerar_rodadas_cruzadas(grupo_a, grupo_b):
+    grupo_a = grupo_a[:]
+    grupo_b = grupo_b[:]
+    random.shuffle(grupo_a)
+    random.shuffle(grupo_b)
+    rodadas = []
+    for _ in range(len(grupo_a)):
+        rodada = []
+        for i in range(len(grupo_a)):
+            casa = grupo_a[i]
+            fora = grupo_b[i]
+            rodada.append((casa, fora))
+        rodadas.append(rodada)
+        grupo_b = [grupo_b[-1]] + grupo_b[:-1]
+    return rodadas
+
+
+def gerar_calendario_cariocao(grupo_a, grupo_b, temporada_ano=ANO_BASE_CALENDARIO):
+    janela = _janelas_calendario(temporada_ano)["cariocao_a1"]
+    rodadas = _gerar_rodadas_cruzadas(grupo_a, grupo_b)
+    datas = _alocar_datas(len(rodadas), janela["inicio"], janela["fim"])
+
+    calendario = []
+    for idx, rodada in enumerate(rodadas, start=1):
+        dia = datas[idx - 1]
+        data_jogo = datetime(dia.year, dia.month, dia.day, 16, 0)
+        calendario.append(
+            {
+                "rodada": idx,
+                "competicao": "cariocao_a1",
+                "data": data_jogo,
+                "partidas": rodada,
+                "fase": "grupo",
+            }
+        )
+
+    ultima_data = calendario[-1]["data"] if calendario else datetime.combine(janela["inicio"], datetime.min.time())
+    calendario.append(
+        {
+            "competicao": "cariocao_a1",
+            "data": ultima_data + timedelta(days=7),
+            "fase": "cariocao_quartas",
+        }
+    )
+    return calendario
+
+
+def gerar_calendario_copa_brasil(temporada_ano=ANO_BASE_CALENDARIO):
+    calendario = []
+    datas_copa = _copa_brasil_calendario(temporada_ano)
+    cursor = datetime.combine(datas_copa[0][1], datetime.min.time())
+    for fase, data_base in datas_copa:
+        cursor = datetime.combine(data_base, datetime.min.time())
+        cursor = _proxima_data_valida(cursor, cursor.weekday(), considerar_fifa=True)
+        data_jogo = datetime(cursor.year, cursor.month, cursor.day, 21, 30)
+        calendario.append({"competicao": "copa_brasil", "data": data_jogo, "fase": f"cdb_{fase}"})
+    return calendario
+
+
 def gerar_calendario_serie_c(clubes, temporada_ano):
-    janela = JANELAS_CALENDARIO_2026["bra_c"]
+    janela = _janelas_calendario(temporada_ano)["bra_c"]
     inicio = janela["inicio"]
     fim = janela["fim"]
     rodadas = _gerar_rodadas_turno_simples(clubes)
@@ -185,7 +349,7 @@ def gerar_calendario_serie_c(clubes, temporada_ano):
 
 
 def gerar_calendario_serie_d(clubes, temporada_ano):
-    janela = JANELAS_CALENDARIO_2026["bra_d"]
+    janela = _janelas_calendario(temporada_ano)["bra_d"]
     inicio = janela["inicio"]
     fim = janela["fim"]
     grupos = SERIE_D_FORMATO["grupos"]

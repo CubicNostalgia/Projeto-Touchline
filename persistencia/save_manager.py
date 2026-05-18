@@ -11,6 +11,9 @@ def save_exists():
 
 def carregar_save():
     if db_manager.save_exists():
+        estado = db_manager.carregar_estado_mundo()
+        temporada_ano = estado.get("meta", {}).get("temporada_atual", 2026)
+        db_manager.sanitizar_integridade_competicoes(temporada_ano=temporada_ano)
         return db_manager.carregar_estado_mundo()
 
     if not LEGACY_SAVE_PATH.exists():
@@ -20,7 +23,8 @@ def carregar_save():
 
 def salvar_save(data):
     clubes = data.get("clubes", [])
-    temporada_ano = data.get("meta", {}).get("temporada_atual", 2026)
+    meta = data.get("meta", {}) or {}
+    temporada_ano = meta.get("temporada_atual", 2026)
     clubes_obj = []
     for clube in clubes:
         if hasattr(clube, "id"):
@@ -51,7 +55,9 @@ def salvar_save(data):
                 )
             )
     db_manager.salvar_clubes(clubes_obj, temporada_ano=temporada_ano)
+    db_manager.salvar_meta_dict(meta)
     db_manager.salvar_meta_temporada(temporada_ano)
+    db_manager.sanitizar_integridade_competicoes(temporada_ano=temporada_ano)
 
 
 def iniciar_novo_save(clubes, temporada_ano=2026):
@@ -60,7 +66,9 @@ def iniciar_novo_save(clubes, temporada_ano=2026):
         "clubes": [c.to_dict() for c in clubes],
     }
     db_manager.salvar_clubes(clubes, temporada_ano=temporada_ano)
+    db_manager.salvar_meta_dict(data.get("meta"))
     db_manager.salvar_meta_temporada(temporada_ano)
+    db_manager.sanitizar_integridade_competicoes(temporada_ano=temporada_ano)
     return data
 
 
@@ -85,4 +93,10 @@ def _aplicar_estado_clube(clube_obj, estado):
     clube_obj.investimento_base = estado.get("investimento_base", getattr(clube_obj, "investimento_base", "medio"))
     clube_obj.nivel_auxiliar = estado.get("nivel_auxiliar", getattr(clube_obj, "nivel_auxiliar", 1))
     clube_obj.nivel_olheiro = estado.get("nivel_olheiro", getattr(clube_obj, "nivel_olheiro", 1))
+    clube_obj.estado_federacao = estado.get("estado_federacao", getattr(clube_obj, "estado_federacao", "OUT"))
+    clube_obj.estado_vaga = estado.get("estado_vaga", getattr(clube_obj, "estado_vaga", "sem_divisao"))
+    clube_obj.rnc_pontos = estado.get("rnc_pontos", getattr(clube_obj, "rnc_pontos", 0))
+    clube_obj.rnc_rank = estado.get("rnc_rank", getattr(clube_obj, "rnc_rank", 0))
+    clube_obj.multiplicador_patrocinio = estado.get("multiplicador_patrocinio", getattr(clube_obj, "multiplicador_patrocinio", 1.0))
+    clube_obj.patrocinio_penalizado = estado.get("patrocinio_penalizado", getattr(clube_obj, "patrocinio_penalizado", False))
     clube_obj.competicoes = estado.get("competicoes", clube_obj.competicoes)
